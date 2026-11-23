@@ -1,0 +1,19 @@
+# Build output from `rojo build`
+/build/
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+!/assets/**/*.rbxm
+
+# Rojo sourcemap (generated for editor tooling)
+sourcemap.json
+
+# Selene's generated Roblox standard library
+roblox.yml
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

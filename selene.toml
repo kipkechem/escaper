@@ -1,0 +1,5 @@
+std = "roblox"
+
+[lints]
+# Components are tables of functions keyed by name; shadowing `self` style params is fine.
+shadowing = "allow"
