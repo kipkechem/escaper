@@ -1,4 +1,4 @@
-# Room 1: The Loading Dock
+# Level 1: The Loading Dock
 
 A tutorial room. It teaches grabbing, weight, and the counterweight lift, then makes you
 combine them. Everything can be solved alone. A second player helps but is never required.
@@ -17,7 +17,7 @@ checks the puzzle sums against the game's real rules, so if you change a weight,
 
 ```
  z
- ^   EXIT CORRIDOR  (goal, "Room 2 coming soon")
+ ^   EXIT CORRIDOR  (ladder up to Level 2)
  |   ─────┤ EXIT DOOR ├─────           (in the back wall, on the mezzanine)
  |   MEZZANINE, 16 high   [EXIT PLATE 30]   checkpoint 3
  |   ═══════════════[B]─[A]═══  fire ladder (drops when the exit opens)

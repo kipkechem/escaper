@@ -13,4 +13,4 @@ notify.OnClientEvent:Connect(function(text: string, kind: string?)
 	Hud.toast(text, kind)
 end)
 
-Hud.toast("Escape the Loading Dock", "info")
+Hud.toast("Escaper: climb all 100 floors", "info")

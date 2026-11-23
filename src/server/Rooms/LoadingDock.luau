@@ -1,112 +1,35 @@
 --!strict
--- Builds Room 1, "The Loading Dock", as a grey-box level. See LoadingDockLayout for the
+-- Builds Level 1, "The Loading Dock", as a grey-box level. See LoadingDockLayout for the
 -- positions and puzzle numbers, and docs/ROOM_1.md for the walkthrough.
 --
--- The game builds this room when the server starts, unless Workspace.Rooms.LoadingDock
--- already exists. `lune run tools/bake.luau` also runs this builder to put the room into
--- the place file, so it can be edited directly in Studio. Because of that, this file only
--- creates instances and sets properties, attributes and tags (no services, no waiting).
+-- Built in the level's own coordinates (see Tower/Placement). Level 1 sits at the tower's
+-- origin; its one exit is the opening at the end of the exit corridor.
+-- Like every builder, this only creates instances (see Rooms/Build).
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local TowerMap = require(ReplicatedStorage.Shared.TowerMap)
+local Placement = require(script.Parent.Parent.Tower.Placement)
 local Layout = require(script.Parent.LoadingDockLayout)
 
 local LoadingDock = {}
-LoadingDock.InstanceName = "LoadingDock"
 
-local palette = {
-	floor = Color3.fromRGB(118, 118, 114),
-	brick = Color3.fromRGB(150, 104, 84),
-	wall = Color3.fromRGB(176, 172, 162),
-	trailer = Color3.fromRGB(222, 224, 226),
-	bayFloor = Color3.fromRGB(105, 88, 70),
-	trim = Color3.fromRGB(232, 188, 36),
-	dark = Color3.fromRGB(42, 42, 46),
-	crate = Color3.fromRGB(166, 120, 72),
-	steel = Color3.fromRGB(88, 96, 108),
-	lift = Color3.fromRGB(214, 170, 38),
-	shutter = Color3.fromRGB(132, 136, 146),
-	sign = Color3.fromRGB(28, 30, 34),
-	signText = Color3.fromRGB(245, 205, 60),
-	reset = Color3.fromRGB(220, 110, 40),
-}
+local Build = require(script.Parent.Build)
 
-type PartOptions = {
-	name: string,
-	color: Color3?,
-	material: Enum.Material?,
-	transparency: number?,
-	canCollide: boolean?,
-	castShadow: boolean?,
-	class: string?,
-	anchored: boolean?,
-}
+local palette = Build.palette
+local folder, tag = Build.folder, Build.tag
 
-local function makePart(parent: Instance, options: PartOptions, cframe: CFrame, size: Vector3): BasePart
-	local part = Instance.new((options.class or "Part") :: any) :: BasePart
-	part.Name = options.name
-	part.Anchored = if options.anchored == nil then true else options.anchored
-	part.Size = size
-	part.CFrame = cframe
-	part.Color = options.color or palette.wall
-	part.Material = options.material or Enum.Material.SmoothPlastic
-	part.Transparency = options.transparency or 0
-	part.CanCollide = if options.canCollide == nil then true else options.canCollide
-	part.CastShadow = if options.castShadow == nil then true else options.castShadow
-	part.TopSurface = Enum.SurfaceType.Smooth
-	part.BottomSurface = Enum.SurfaceType.Smooth
-	part.Parent = parent
-	return part
+-- Everything is placed through the level's frame (set at the start of `build`).
+local builder = Build.new()
+
+local function makePart(parent: Instance, options: Build.PartOptions, cframe: CFrame, size: Vector3): BasePart
+	return builder:part(parent, options, cframe, size)
 end
 
--- A box between two opposite corners.
-local function box(parent: Instance, options: PartOptions, from: Vector3, to: Vector3): BasePart
-	local low = from:Min(to)
-	local high = from:Max(to)
-	return makePart(parent, options, CFrame.new((low + high) / 2), high - low)
+local function box(parent: Instance, options: Build.PartOptions, from: Vector3, to: Vector3): BasePart
+	return builder:box(parent, options, from, to)
 end
 
-local function folder(parent: Instance, name: string): Folder
-	local newFolder = Instance.new("Folder")
-	newFolder.Name = name
-	newFolder.Parent = parent
-	return newFolder
-end
-
-local function textOnFace(
-	part: BasePart,
-	face: Enum.NormalId,
-	text: string,
-	textColor: Color3,
-	background: Color3?
-)
-	local gui = Instance.new("SurfaceGui")
-	gui.Name = "Text" .. face.Name
-	gui.Face = face
-	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = 40
-	gui.LightInfluence = 0.4
-	gui.Parent = part
-
-	local label = Instance.new("TextLabel")
-	label.Name = "Label"
-	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundColor3 = background or Color3.new(0, 0, 0)
-	label.BackgroundTransparency = if background then 0 else 1
-	label.BorderSizePixel = 0
-	label.FontFace = Font.fromEnum(Enum.Font.GothamBlack)
-	label.TextScaled = true
-	label.TextColor3 = textColor
-	label.Text = text
-	label.Parent = gui
-
-	local padding = Instance.new("UIPadding")
-	padding.PaddingLeft = UDim.new(0.06, 0)
-	padding.PaddingRight = UDim.new(0.06, 0)
-	padding.PaddingTop = UDim.new(0.08, 0)
-	padding.PaddingBottom = UDim.new(0.08, 0)
-	padding.Parent = label
-end
-
--- A wall sign. `facing` is the direction the text faces (towards the reader).
 local function sign(
 	parent: Instance,
 	name: string,
@@ -115,54 +38,7 @@ local function sign(
 	size: Vector2,
 	text: string
 )
-	local cframe = CFrame.lookAt(position, position + facing)
-	local part = makePart(
-		parent,
-		{ name = name, color = palette.sign, castShadow = false },
-		cframe,
-		Vector3.new(size.X, size.Y, 0.2)
-	)
-	textOnFace(part, Enum.NormalId.Front, text, palette.signText)
-	return part
-end
-
-local function tag(instance: Instance, tagName: string, attributes: { [string]: any }?)
-	instance:AddTag(tagName)
-	if attributes then
-		for key, value in attributes do
-			instance:SetAttribute(key, value)
-		end
-	end
-end
-
-local function weld(part0: BasePart, part1: BasePart)
-	local constraint = Instance.new("WeldConstraint")
-	constraint.Part0 = part0
-	constraint.Part1 = part1
-	constraint.Parent = part1
-end
-
-local function attachmentAt(part: BasePart, worldPosition: Vector3, name: string): Attachment
-	local attachment = Instance.new("Attachment")
-	attachment.Name = name
-	attachment.CFrame = CFrame.new(part.CFrame:PointToObjectSpace(worldPosition))
-	attachment.Parent = part
-	return attachment
-end
-
-local function rope(parent: Instance, a: Attachment, b: Attachment)
-	local beam = Instance.new("Beam")
-	beam.Name = "Rope"
-	beam.Attachment0 = a
-	beam.Attachment1 = b
-	beam.Width0 = 0.25
-	beam.Width1 = 0.25
-	beam.FaceCamera = true
-	beam.Segments = 1
-	beam.Color = ColorSequence.new(Color3.fromRGB(60, 56, 50))
-	beam.Transparency = NumberSequence.new(0)
-	beam.LightInfluence = 1
-	beam.Parent = parent
+	return builder:sign(parent, name, position, facing, size, text)
 end
 
 local function buildShell(room: Model)
@@ -265,11 +141,29 @@ local function buildShell(room: Model)
 	box(shell, concrete, Vector3.new(-3, 0, 80), Vector3.new(3, mezzanine, 82))
 	box(shell, concrete, Vector3.new(-3, mezzanine + 8, 80), Vector3.new(3, top, 82))
 
-	-- Exit corridor behind the door.
-	box(shell, floor, Vector3.new(-6, mezzanine - 2, 82), Vector3.new(6, mezzanine, 98))
+	-- Exit corridor behind the door. Its end wall has the opening (x -3..3, 8 high) where the
+	-- ladder up to Level 2 starts.
+	box(shell, floor, Vector3.new(-6, mezzanine - 2, 82), Vector3.new(6, mezzanine, 100))
 	box(shell, concrete, Vector3.new(-8, mezzanine - 2, 82), Vector3.new(-6, top, 100))
 	box(shell, concrete, Vector3.new(6, mezzanine - 2, 82), Vector3.new(8, top, 100))
-	box(shell, concrete, Vector3.new(-6, mezzanine - 2, 98), Vector3.new(6, top, 100))
+	box(shell, concrete, Vector3.new(-6, mezzanine, 99), Vector3.new(-3, top, 100))
+	box(shell, concrete, Vector3.new(3, mezzanine, 99), Vector3.new(6, top, 100))
+	box(shell, concrete, Vector3.new(-3, mezzanine + 8, 99), Vector3.new(3, top, 100))
+
+	-- Lamps: the level above shades this one from the sun.
+	for _, position in
+		{
+			Vector3.new(0, top - 1.5, -26),
+			Vector3.new(-12, top - 1.5, 0),
+			Vector3.new(12, top - 1.5, 0),
+			Vector3.new(-12, top - 1.5, 45),
+			Vector3.new(12, top - 1.5, 45),
+			Vector3.new(0, top - 1.5, 72),
+			Vector3.new(0, top - 1.5, 91),
+		}
+	do
+		builder:lamp(shell, position)
+	end
 
 	-- An invisible lid so stacked crates never let anyone climb out over the walls.
 	box(
@@ -283,74 +177,15 @@ end
 local function buildCrates(room: Model)
 	local crates = folder(room, "Crates")
 	for _, spec in Layout.Crates do
-		local heavy = spec.mass > 45
-		local part = makePart(crates, {
+		builder:loose(crates, {
 			name = spec.name,
-			color = if heavy then palette.steel else palette.crate,
-			material = if heavy then Enum.Material.DiamondPlate else Enum.Material.WoodPlanks,
-			anchored = false,
-		}, CFrame.new(spec.position) * CFrame.Angles(0, math.rad(spec.yaw), 0), spec.size)
-		tag(part, "Grabbable", {
-			Mass = spec.mass,
-			DisplayName = if heavy then "Steel crate" else "Crate",
+			kind = if spec.mass > 45 then "steel" else "crate",
+			mass = spec.mass,
+			position = spec.position,
+			size = spec.size,
+			yaw = spec.yaw,
 		})
-		local text = string.format("%d KG", spec.mass)
-		for _, face in
-			{
-				Enum.NormalId.Front,
-				Enum.NormalId.Back,
-				Enum.NormalId.Left,
-				Enum.NormalId.Right,
-				Enum.NormalId.Top,
-			}
-		do
-			textOnFace(part, face, if heavy then text .. "\nHEAVY" else text, Color3.fromRGB(30, 24, 18))
-		end
 	end
-end
-
-local function buildLever(
-	parent: Instance,
-	name: string,
-	position: Vector3,
-	attributes: { [string]: any }
-): Model
-	local lever = Instance.new("Model")
-	lever.Name = name
-	makePart(
-		lever,
-		{ name = "Base", color = palette.steel, material = Enum.Material.Metal },
-		CFrame.new(position + Vector3.new(0, 1.25, 0)),
-		Vector3.new(1.2, 2.5, 1.2)
-	)
-	makePart(
-		lever,
-		{ name = "Handle", color = palette.dark, material = Enum.Material.Metal },
-		CFrame.new(position + Vector3.new(0, 3.5, 0)),
-		Vector3.new(0.35, 2, 0.35)
-	)
-	makePart(
-		lever,
-		{ name = "Lamp", color = Color3.fromRGB(150, 40, 35), material = Enum.Material.Neon },
-		CFrame.new(position + Vector3.new(0, 2.1, -0.65)),
-		Vector3.new(0.5, 0.5, 0.1)
-	)
-	tag(lever, "Lever", attributes)
-	lever.Parent = parent
-	return lever
-end
-
-local function buildResetConsole(parent: Instance, name: string, position: Vector3, facing: Vector3)
-	local cframe =
-		CFrame.lookAt(position + Vector3.new(0, 1.5, 0), position + Vector3.new(0, 1.5, 0) + facing)
-	local console = makePart(
-		parent,
-		{ name = name, color = palette.reset, material = Enum.Material.Metal },
-		cframe,
-		Vector3.new(2, 3, 1.2)
-	)
-	textOnFace(console, Enum.NormalId.Front, "RESET\nROOM", Color3.new(1, 1, 1))
-	tag(console, "RoomReset")
 end
 
 local function buildDock(room: Model)
@@ -365,7 +200,7 @@ local function buildDock(room: Model)
 	}, CFrame.new(0, bayFloor + 0.5, -33), Vector3.new(6, 1, 6)) :: SpawnLocation
 	spawn.Neutral = true
 	spawn.Duration = 0
-	tag(spawn, "Checkpoint", { Order = 1 })
+	tag(spawn, "Checkpoint", { Order = 11, Announce = TowerMap.label("1") })
 
 	sign(
 		dock,
@@ -434,76 +269,32 @@ local function buildDock(room: Model)
 		"SAFETY NOTICE\nEACH WORKER COUNTS AS 25 KG\nCARRIED LOADS COUNT TOO"
 	)
 
-	buildResetConsole(dock, "ResetDock", Vector3.new(-21, 0, -9), Vector3.new(1, 0, 0))
+	builder:resetConsole(dock, "ResetDock", Vector3.new(-21, 0, -9), Vector3.new(1, 0, 0))
 end
 
 local function buildLift(parent: Instance): Model
-	local lift = Instance.new("Model")
-	lift.Name = "FreightLift"
-	local specA = Layout.Lift.PlatformA
-	local specB = Layout.Lift.PlatformB
-	local liftStyle = { name = "", color = palette.lift, material = Enum.Material.DiamondPlate }
-
-	liftStyle.name = "PlatformA"
-	local platformA = makePart(lift, liftStyle, CFrame.new(specA.center), specA.size)
-	liftStyle.name = "PlatformB"
-	local platformB = makePart(lift, liftStyle, CFrame.new(specB.center), specB.size)
-
-	local function railing(platform: BasePart, name: string, localCenter: Vector3, size: Vector3)
-		local rail = makePart(
-			lift,
-			{ name = name, color = palette.dark, material = Enum.Material.Metal, anchored = false },
-			platform.CFrame * CFrame.new(localCenter),
-			size
-		)
-		rail.Massless = true
-		weld(platform, rail)
-	end
-	-- Rider side: a rail on the open-air side only, so the cargo side is within easy reach.
-	railing(platformB, "RailWest", Vector3.new(-3.8, 1.25, 0), Vector3.new(0.4, 1.5, 8))
-	-- Cargo side: a rail by the ladder well so crates do not slide off.
-	railing(platformA, "RailEast", Vector3.new(3.8, 1.25, 0), Vector3.new(0.4, 1.5, 8))
-
-	-- Pulley girder, wheels and ropes (decoration only).
-	local girder = makePart(
-		lift,
-		{ name = "Girder", color = palette.steel, material = Enum.Material.Metal },
-		CFrame.new(3.5, 32.5, 59.5),
-		Vector3.new(20, 1, 1)
-	)
-	for index, x in { specB.center.X, specA.center.X } do
-		-- Cylinders run along their X axis; turn it to face along Z like a pulley wheel.
-		local wheelCFrame = CFrame.new(x, 30, 59.5) * CFrame.Angles(0, math.rad(90), 0)
-		local wheel = makePart(
-			lift,
-			{ name = "Wheel" .. index, color = palette.dark, material = Enum.Material.Metal },
-			wheelCFrame,
-			Vector3.new(0.8, 3, 3)
-		) :: Part
-		wheel.Shape = Enum.PartType.Cylinder
-	end
-	local ropeTopB = attachmentAt(girder, Vector3.new(specB.center.X, 28.5, 59.5), "RopeB")
-	local ropeTopA = attachmentAt(girder, Vector3.new(specA.center.X, 28.5, 59.5), "RopeA")
-	local wheelTopB = attachmentAt(girder, Vector3.new(specB.center.X, 31.5, 59.5), "OverB")
-	local wheelTopA = attachmentAt(girder, Vector3.new(specA.center.X, 31.5, 59.5), "OverA")
-	rope(lift, attachmentAt(platformB, specB.center + Vector3.new(0, specB.size.Y / 2, 0), "Rope"), ropeTopB)
-	rope(lift, attachmentAt(platformA, specA.center + Vector3.new(0, specA.size.Y / 2, 0), "Rope"), ropeTopA)
-	rope(lift, wheelTopB, wheelTopA)
-
-	tag(lift, "CounterweightLift", {
-		Travel = Layout.Lift.Travel,
-		Speed = Layout.Lift.Speed,
-		TareA = Layout.Lift.TareA,
-		TareB = Layout.Lift.TareB,
-		Output = "LiftUp",
-		LabelA = "CARGO",
-		LabelB = "RIDER + CAGE",
+	local lift = Layout.Lift
+	return builder:counterweightLift(parent, {
+		travel = lift.Travel,
+		speed = lift.Speed,
+		tareA = lift.TareA,
+		tareB = lift.TareB,
+		output = "LiftUp",
+		a = lift.PlatformA,
+		b = lift.PlatformB,
+		-- Cargo side: a rail by the ladder well so crates do not slide off.
+		railsA = {
+			{ name = "RailEast", offset = Vector3.new(3.8, 1.25, 0), size = Vector3.new(0.4, 1.5, 8) },
+		},
+		-- Rider side: a rail on the open-air side only, so the cargo side is within easy reach.
+		railsB = {
+			{ name = "RailWest", offset = Vector3.new(-3.8, 1.25, 0), size = Vector3.new(0.4, 1.5, 8) },
+		},
+		girderHeight = 30,
 	})
-	lift.Parent = parent
-	return lift
 end
 
-local function buildHall(room: Model)
+local function buildHall(room: Model, context: Placement.Context)
 	local hall = folder(room, "Hall")
 	local mezzanine = Layout.MezzanineHeight
 
@@ -513,9 +304,9 @@ local function buildHall(room: Model)
 		CFrame.new(0, 3, 33.5),
 		Vector3.new(10, 6, 3)
 	)
-	tag(checkpoint, "Checkpoint", { Order = 2 })
+	tag(checkpoint, "Checkpoint", { Order = 12 })
 
-	buildLever(
+	builder:lever(
 		hall,
 		"ShutterLever",
 		Vector3.new(9, 0, 33),
@@ -546,7 +337,7 @@ local function buildHall(room: Model)
 		CFrame.new(-1, mezzanine + 3, 67),
 		Vector3.new(10, 6, 4)
 	)
-	tag(mezzanineCheckpoint, "Checkpoint", { Order = 3 })
+	tag(mezzanineCheckpoint, "Checkpoint", { Order = 13 })
 
 	-- Puzzle 3: the exit opens (and stays open) once its plate carries 30 KG.
 	local plate = makePart(
@@ -593,33 +384,29 @@ local function buildHall(room: Model)
 		{ Input = "ExitPlate", Latch = true, OpenOffset = Vector3.new(0, -mezzanine, 0), OpenTime = 2 }
 	)
 
-	buildResetConsole(hall, "ResetHall", Vector3.new(-21, 0, 33), Vector3.new(1, 0, 0))
+	builder:resetConsole(hall, "ResetHall", Vector3.new(-21, 0, 33), Vector3.new(1, 0, 0))
 
-	-- Exit corridor.
-	local goal = makePart(
-		hall,
-		{ name = "Goal", transparency = 1, canCollide = false, castShadow = false },
-		CFrame.new(0, mezzanine + 3, 94),
-		Vector3.new(12, 6, 4)
-	)
-	tag(goal, "RoomGoal")
-	sign(
-		hall,
-		"EndSign",
-		Vector3.new(0, mezzanine + 5, 97.85),
-		Vector3.new(0, 0, -1),
-		Vector2.new(10, 4),
-		"YOU ESCAPED THE LOADING DOCK\nROOM 2: COMING SOON"
-	)
+	-- Exit corridor: a sign over each exit opening (Level 1 has one).
+	for _, exit in context.exits do
+		sign(
+			hall,
+			"ExitSign" .. exit.target,
+			Vector3.new(exit.localX, mezzanine + 10, 98.85),
+			Vector3.new(0, 0, -1),
+			Vector2.new(10, 3),
+			string.upper("To " .. TowerMap.label(exit.target))
+		)
+	end
 end
 
-function LoadingDock.build(parent: Instance): Model
+function LoadingDock.build(parent: Instance, context: Placement.Context): Model
+	builder = Build.new(context.frame)
 	local room = Instance.new("Model")
-	room.Name = LoadingDock.InstanceName
-	tag(room, "Room", { RoomName = Layout.RoomName })
+	room.Name = "Level" .. context.id
+	tag(room, "Room", { RoomName = context.label })
 	buildShell(room)
 	buildDock(room)
-	buildHall(room)
+	buildHall(room, context)
 	buildCrates(room)
 	room.Parent = parent
 	return room

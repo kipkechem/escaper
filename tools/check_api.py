@@ -50,6 +50,7 @@ def main() -> int:
         "Connect", "Disconnect", "Once", "Wait", "Lerp", "Inverse", "PointToObjectSpace",
         "PointToWorldSpace", "ToObjectSpace", "ToWorldSpace", "VectorToObjectSpace", "Dot",
         "Cross", "Min", "Max", "Fire", "Play", "Cancel", "Pause", "format", "find", "match",
+        "VectorToWorldSpace", "GetComponents",
         "gsub", "sub", "lower", "upper",
     }
     datatype_properties = {
@@ -74,8 +75,8 @@ def main() -> int:
                 problems.append(f"{path}: unknown class {class_name}")
             elif "NotCreatable" in cls.get("Tags", []):
                 problems.append(f"{path}: class {class_name} cannot be created")
-        # Tables created with `local X = {}` are this project's modules; their fields are ours.
-        modules = set(re.findall(r"local\s+(\w+)\s*=\s*\{\s*\}", stripped))
+        # Tables created with `local X = {...}` (modules, option tables) are ours, not Instances.
+        modules = set(re.findall(r"local\s+(\w+)\s*(?::[^=\n]+)?=\s*\{", stripped))
         # Fields declared in this file's own types (`name: Type`) belong to its tables.
         fields = set(re.findall(r"\b(\w+)\s*:\s*[\w({]", stripped))
         for receiver, name in re.findall(r"(\w+)\.(\w+)\s*=(?!=)", stripped):

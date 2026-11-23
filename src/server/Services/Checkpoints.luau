@@ -1,38 +1,39 @@
 --!strict
--- Remembers the furthest checkpoint each player has reached, and where to respawn them.
--- Checkpoints are numbered by their "Order" attribute; higher means further on.
+-- Remembers each player's checkpoint and where to respawn them. Checkpoints are compared
+-- by their "Order" attribute, floor x 10 + n, so higher in the tower wins. Two staircases
+-- can share a floor, so the latest one touched wins a tie.
 
 local Checkpoints = {}
 
-type Entry = { cframe: CFrame, roomName: string }
+local spawnPoints: { [BasePart]: CFrame } = {}
+local current: { [Player]: BasePart } = setmetatable({}, { __mode = "k" }) :: any
 
-local entries: { [number]: Entry } = {}
-
-function Checkpoints.register(order: number, cframe: CFrame, roomName: string)
-	entries[order] = { cframe = cframe, roomName = roomName }
+function Checkpoints.register(part: BasePart, cframe: CFrame)
+	spawnPoints[part] = cframe
 end
 
-function Checkpoints.unregister(order: number)
-	entries[order] = nil
+function Checkpoints.unregister(part: BasePart)
+	spawnPoints[part] = nil
 end
 
--- Records the checkpoint if it is further than the player's current one. Returns true if so.
-function Checkpoints.reach(player: Player, order: number): boolean
-	local current = player:GetAttribute("Checkpoint")
-	if type(current) == "number" and current >= order then
+-- Moves the player's checkpoint to `part` unless they already have a higher one.
+-- Returns true if it changed.
+function Checkpoints.reach(player: Player, part: BasePart, order: number): boolean
+	if current[player] == part then
 		return false
 	end
+	local currentOrder = player:GetAttribute("Checkpoint")
+	if type(currentOrder) == "number" and currentOrder > order then
+		return false
+	end
+	current[player] = part
 	player:SetAttribute("Checkpoint", order)
 	return true
 end
 
 function Checkpoints.spawnCFrame(player: Player): CFrame?
-	local order = player:GetAttribute("Checkpoint")
-	if type(order) ~= "number" then
-		return nil
-	end
-	local entry = entries[order]
-	return if entry then entry.cframe else nil
+	local part = current[player]
+	return if part then spawnPoints[part] else nil
 end
 
 return Checkpoints

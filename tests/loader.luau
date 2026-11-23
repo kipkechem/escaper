@@ -85,6 +85,16 @@ function Loader.require(path: string): any
 	for key, value in robloxGlobals do
 		environment[key] = value
 	end
+	-- Server modules reach shared code through ReplicatedStorage.Shared.
+	local replicatedStorage = { Shared = folderFor("src/shared") }
+	environment.game = {
+		GetService = function(_, name: string)
+			if name == "ReplicatedStorage" then
+				return replicatedStorage
+			end
+			error("tests cannot use the " .. name .. " service", 2)
+		end,
+	}
 	local chunk = luau.load(source, { debugName = path, environment = environment })
 	local result = chunk()
 	cache[path] = result

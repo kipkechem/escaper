@@ -94,7 +94,7 @@ function Grabbable.destroy(self: Grabbable)
 	live[self] = nil
 end
 
--- Return objects that fell out of the world.
+-- Return objects that fell out of the world, or were carried out of their level.
 local elapsed = 0
 RunService.Heartbeat:Connect(function(dt)
 	elapsed += dt
@@ -103,8 +103,9 @@ RunService.Heartbeat:Connect(function(dt)
 	end
 	elapsed = 0
 	for object in live do
-		local pivot = (object.instance :: PVInstance):GetPivot()
-		if pivot.Position.Y < Config.Reset.VoidHeight then
+		local position = (object.instance :: PVInstance):GetPivot().Position
+		local tooFar = (position - object.home.Position).Magnitude > Config.Reset.MaxDistanceFromHome
+		if position.Y < Config.Reset.VoidHeight or (tooFar and not Grabbables.heldBy(object.instance)) then
 			object:reset()
 		end
 	end

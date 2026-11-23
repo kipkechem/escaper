@@ -59,6 +59,28 @@ Config.Reset = {
 	Cooldown = 10,
 	-- Objects that fall below this height are returned to their starting place.
 	VoidHeight = -80,
+	-- Objects carried this far from where they started (out of their level) go back too.
+	MaxDistanceFromHome = 180,
+}
+
+-- Layout of the tower. See docs/TOWER.md.
+Config.Tower = {
+	FloorHeight = 64,
+	ColumnPitch = 64,
+	-- Every level fits in this box, in its own coordinates. Its entrance is in the wall at
+	-- z = EnvelopeMin.Z (floor level), its exits in the wall at z = EnvelopeMax.Z.
+	EnvelopeMin = Vector3.new(-26, -16, -42),
+	EnvelopeMax = Vector3.new(26, 44, 100),
+	-- Exit openings: floor height, side-slot offset, and size.
+	ExitHeight = 16,
+	ExitSlotOffset = 16,
+	OpeningWidth = 6,
+	OpeningHeight = 8,
+	-- Landing zone beyond each level's end: three lanes of this depth.
+	LaneDepth = 8,
+	-- Half the width of an entrance pad, and its inside height.
+	PadHalfWidth = 10,
+	TubeHeight = 10,
 }
 
 Config.Colors = {

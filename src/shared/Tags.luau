@@ -6,6 +6,7 @@ return {
 	Room = "Room",
 	Grabbable = "Grabbable",
 	PressurePlate = "PressurePlate",
+	Socket = "Socket",
 	Lever = "Lever",
 	Door = "Door",
 	Indicator = "Indicator",

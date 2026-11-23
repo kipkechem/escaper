@@ -1,7 +1,8 @@
 --!strict
 -- Tag: Checkpoint (a part; usually an invisible trigger box with CanCollide off)
 -- Attributes:
---   Order (number)   higher numbers are further on; players respawn at the highest they touched
+--   Order (number)      floor x 10 + n. Players respawn at the highest they have touched.
+--   Announce (string)   optional message shown on first touch, e.g. "Level 2 · The Switchboard"
 -- A SpawnLocation can carry this tag too, as the first checkpoint.
 
 local Players = game:GetService("Players")
@@ -32,15 +33,10 @@ function Checkpoint.new(instance: Instance): Checkpoint?
 		warn("[Escaper] Checkpoint needs a number Order attribute: " .. instance:GetFullName())
 		return nil
 	end
-	local scope = Signals.scopeFor(instance)
-	local roomName = scope:GetAttribute("RoomName")
+	local announce = instance:GetAttribute("Announce")
 	-- Respawn standing on the bottom of the checkpoint box, facing the way it faces.
 	local floor = instance.CFrame * CFrame.new(0, -instance.Size.Y / 2, 0)
-	Checkpoints.register(
-		order,
-		floor + Vector3.new(0, 3.5, 0),
-		if type(roomName) == "string" then roomName else ""
-	)
+	Checkpoints.register(instance, floor + Vector3.new(0, 3.5, 0))
 
 	instance.CanTouch = true
 	local connection = instance.Touched:Connect(function(hit)
@@ -50,14 +46,19 @@ function Checkpoint.new(instance: Instance): Checkpoint?
 			return
 		end
 		local humanoid = (character :: Instance):FindFirstChildOfClass("Humanoid")
-		if humanoid and humanoid.Health > 0 and Checkpoints.reach(player, order) and order > 1 then
+		if not humanoid or humanoid.Health <= 0 or not Checkpoints.reach(player, instance, order) then
+			return
+		end
+		if type(announce) == "string" then
+			Notify.player(player, announce, "info")
+		elseif order % 10 ~= 1 then
 			Notify.player(player, "Checkpoint reached", "success")
 		end
 	end)
 
 	return setmetatable({
 		instance = instance,
-		scope = scope,
+		scope = Signals.scopeFor(instance),
 		order = order,
 		connection = connection,
 	}, Checkpoint)
@@ -65,7 +66,7 @@ end
 
 function Checkpoint.destroy(self: Checkpoint)
 	self.connection:Disconnect()
-	Checkpoints.unregister(self.order)
+	Checkpoints.unregister(self.instance)
 end
 
 return Checkpoint
